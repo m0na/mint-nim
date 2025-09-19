@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 from typing import Optional
+import time
+from fastapi import Request
 
 app = FastAPI(title="mint-nim")
 
@@ -10,6 +12,15 @@ class GenerateRequest(BaseModel):
 
 class GenerateResponse(BaseModel):
     output: str
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    dur_ms = int((time.time() - start) * 1000)
+    print(f"{request.method} {request.url.path} -> {response.status_code} ({dur_ms}ms)")
+    return response
 
 @app.get("/health")
 def health():
@@ -21,3 +32,7 @@ def generate(req: GenerateRequest):
     limit = req.max_tokens or 64
     clipped = text[:limit]  # simple stand-in for token limit
     return {"output": f"{clipped} ✨ (tokens={limit})"}
+
+@app.get("/metrics")
+def metrics():
+    return {"ok": True}
